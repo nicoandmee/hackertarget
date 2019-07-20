@@ -1,0 +1,26 @@
+{
+  "name": "hackertarget",
+  "version": "1.0.0",
+  "description": "automate scan submission for https://hackertarget.com scanners using headless chrome",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^2.4.2",
+    "commander": "^2.20.0",
+    "lodash": "^4.17.15",
+    "puppeteer": "^1.18.1",
+    "shodan-client": "^3.1.4",
+    "util": "^0.12.1"
+  },
+  "devDependencies": {
+    "@types/chalk": "^2.2.0",
+    "@types/lodash": "^4.14.136",
+    "@types/node": "^12.6.8",
+    "@types/puppeteer": "^1.12.4",
+    "typescript": "^3.5.3"
+  }
+}
