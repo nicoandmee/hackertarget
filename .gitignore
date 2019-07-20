@@ -69,3 +69,5 @@ node_modules/
 # Do not expose the service account publicly - it allows full write access to your Firebase project.
 service-account.json
 functions/.vscode/settings.json
+
+.editorconfig
