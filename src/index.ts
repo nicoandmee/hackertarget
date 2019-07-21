@@ -12,13 +12,12 @@ import * as _ from 'lodash';
 
 import * as admin from 'firebase-admin';
 
-const serviceAccount = require('../config/cgreenential.json');
-admin.initializeApp({ credential: admin.credential.cert(serviceAccount), databaseURL: 'https://clear-wind-236520.firebaseio.com/' });
+const serviceAccount = require('../config/credential.json');
+admin.initializeApp({ credential: admin.credential.cert(serviceAccount), databaseURL: 'https://prepaid-245804.firebaseio.com/' });
 admin.firestore().settings({ timestampsInSnapshots: true });
 
 import * as HackerTarget from './hackertarget';
 import { logScan, stopBrowser } from './utils';
-import * as Puppeteer from 'puppeteer';
 
 const chalk = require('chalk');
 const log = console.log;
@@ -26,8 +25,7 @@ const log = console.log;
 args
     .version("0.0.1")
     .option("-t, --target <target>", "target host")
-    .option("-h, --headfull [headfull]", "headfull browser launch")
-    .option("-f, --filters [filters]", "(Opt) Shodan Filters")
+    .option("-m, --modules <modules>", "modules to run")
     .parse(process.argv);
 
 
@@ -35,6 +33,9 @@ args
 async function scan() {
     try {
         const { target } = args.parse(process.argv);
+        const modules = args.parse(process.argv).modules || ['WP', 'OPENVAS', 'NMAP', 'JOOMLA', 'BE'];
+
+
         log(chalk.green('Executing Scan: ', target));
 
         const options = {
@@ -50,20 +51,24 @@ async function scan() {
         // Login
         await HackerTarget.login(process.env.HACKERTARGET_USERNAME, process.env.HACKERTARGET_PASSWORD, page);
 
-        await HackerTarget.profileTarget(target, page);
-        log(chalk.green('Executed Domain Profiling', target));
+        // await HackerTarget.profileTarget(target, page);
+        // log(chalk.green('Executed Domain Profiling', target));
 
-        await HackerTarget.runNikto(target, page);
-        log(chalk.green('Executed Nikto Scanner (Full):', target));
+        // await HackerTarget.runNikto(target, page);
+        // log(chalk.green('Executed Nikto Scanner (Full):', target));
 
-        await HackerTarget.scanWP(target, page);
-        log(chalk.green('Executed WP Full Scanner:', target));
+        // await HackerTarget.scanWP(target, page);
+        // log(chalk.green('Executed WP Full Scanner:', target));
 
         await HackerTarget.runNMAP(target, page);
         log(chalk.green('Executed NMAP (-sV) Scanner:', target));
 
         await HackerTarget.runOpenVAS(target, page);
         log(chalk.green('Execute OpenVAS Scanner:', target));
+
+
+        // await HackerTarget.runBlindElephant(target, page);
+        // log(chalk.green('Execute BlindElephant Scanner:', target));
 
         log(`Finished HackerTarget Scanning for: ${target}.`);
         await logScan(target);
