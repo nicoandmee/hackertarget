@@ -1,83 +1,76 @@
 #!/usr/bin/env node
 
+import { config } from "dotenv";
+import { resolve } from "path";
+config({ path: resolve(__dirname, "../.env") })
+
 import * as puppeteer from "puppeteer";
 import * as args from "commander";
 import * as _ from 'lodash';
 
-// Automation for HackerTarget services
-import * as HackerTarget from './hackertarget';
+// init first
 
-// wrap chalk to log cause we love colors
+import * as admin from 'firebase-admin';
+
+const serviceAccount = require('../config/cgreenential.json');
+admin.initializeApp({ credential: admin.credential.cert(serviceAccount), databaseURL: 'https://clear-wind-236520.firebaseio.com/' });
+admin.firestore().settings({ timestampsInSnapshots: true });
+
+import * as HackerTarget from './hackertarget';
+import { logScan, stopBrowser } from './utils';
+import * as Puppeteer from 'puppeteer';
+
 const chalk = require('chalk');
 const log = console.log;
 
 args
     .version("0.0.1")
-    .option("-full, --headfull <headfull>", "Whether to open browser or use headless (default).")
-    .option("-h, --host <host>", "Target Host")
-    .option("-f, --filters <filters>", "(Opt) Shodan Filters")
+    .option("-t, --target <target>", "target host")
+    .option("-h, --headfull [headfull]", "headfull browser launch")
+    .option("-f, --filters [filters]", "(Opt) Shodan Filters")
     .parse(process.argv);
 
 
 
 async function scan() {
-    const target = process.args["host"];
-    const filters = process.env.args["filters"]; // unused for now
+    try {
+        const { target } = args.parse(process.argv);
+        log(chalk.green('Executing Scan: ', target));
 
-    console.time(`HackerTarget Scan | Started with target: ${target}`);
+        const options = {
+            ignoreHTTPSErrors: true,
+            headless: false,
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--ignore-certificate-errors', '--disk-cache-size=1', '--disable-infobars'],
+        };
+        const browser = await puppeteer.launch(options);
 
-    const args = ['--no-sandbox', '--disable-setuid-sandbox', '--ignore-certificate-errors', '--disk-cache-size=1', `--user-data-dir=${this.userDataDir}`, '--disable-infobars'];
-    const options = {
-        ignoreHTTPSErrors: true,
-        headless: false,
-        args,
-    };
-    const browser = await puppeteer.launch(options);
+        const page = await browser.newPage();
+        await page.setDefaultNavigationTimeout(15000);
 
-    const page = await browser.newPage();
+        // Login
+        await HackerTarget.login(process.env.HACKERTARGET_USERNAME, process.env.HACKERTARGET_PASSWORD, page);
 
-    // Login
-    await page.goto('https://hackertarget.com/my-account/', { waitUntil: 'networkidle0' });
+        await HackerTarget.profileTarget(target, page);
+        log(chalk.green('Executed Domain Profiling', target));
 
-    await page.type('#user_login', process.env.HACKERTARGET_USERNAME, { delay: 500 });
-    await page.type('#user_pass', process.env.HACKERTARGET_PASSWORD, { delay: 500 });
+        await HackerTarget.runNikto(target, page);
+        log(chalk.green('Executed Nikto Scanner (Full):', target));
 
-    const handle = await page.$('#wp-submit');
-    await Promise.all([
-        handle.click(),
-        page.waitForNavigation({ waitUntil: 'networkidle2' })
-    ]);
+        await HackerTarget.scanWP(target, page);
+        log(chalk.green('Executed WP Full Scanner:', target));
 
-    await page.waitForSelector('a[href="/dashboard/"]', { timeout: 12000 });
+        await HackerTarget.runNMAP(target, page);
+        log(chalk.green('Executed NMAP (-sV) Scanner:', target));
 
+        await HackerTarget.runOpenVAS(target, page);
+        log(chalk.green('Execute OpenVAS Scanner:', target));
 
-    await HackerTarget.profileTarget(target, page);
-    log(chalk.red('Executed: Domain Profiling', target));
-
-    await HackerTarget.runWappalyzer(target, page);
-    log(chalk.red('Executed: Wappalyzer', target));
-
-    await HackerTarget.runNikto(target, page);
-    log(chalk.red('Executed: Nikto Scanner (Full) | UA: Chrome', target));
-
-    await HackerTarget.scanWP(target, page);
-    log(chalk.red('Executed: WP Full Scanner', target));
-
-    await HackerTarget.runNMAP(target, page);
-    log(chalk.red('Executed: Full nmap', target));
-
-    await HackerTarget.runOpenVAS(target, page);
-    log(chalk.red('Executed: OpenVAS Scanner', target));
-
-    console.timeEnd(`HackerTarget Scan | Started with target: ${target}`);
-    log(`Finished HackerTarget Scanning for: ${target}!`);
-
-
-    // TODO: [BAC-11] Add shodan integration
-    let searchOpts = {
-        facets: 'port:100,country:100',
-        // minify: false,
-    };
+        log(`Finished HackerTarget Scanning for: ${target}.`);
+        await logScan(target);
+        await stopBrowser(browser);
+    } catch (error) {
+        console.error("Migration failed!", error);
+    }
 }
 
 

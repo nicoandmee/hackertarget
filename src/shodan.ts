@@ -4,7 +4,7 @@ function directIPScan() {
     return [];
 }
 
-function scanByFilters {
+function scanByFilters (filters) {
     // do scanning
     return [].concat('lol');
 }

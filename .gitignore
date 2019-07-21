@@ -71,3 +71,4 @@ service-account.json
 functions/.vscode/settings.json
 
 .editorconfig
+dist/
