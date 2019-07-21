@@ -72,3 +72,4 @@ functions/.vscode/settings.json
 
 .editorconfig
 dist/
+*.json
