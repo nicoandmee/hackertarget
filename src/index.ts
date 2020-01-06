@@ -7,24 +7,19 @@ config({ path: resolve(__dirname, "../.env") })
 import * as puppeteer from "puppeteer";
 import * as args from "commander";
 import * as _ from 'lodash';
-
-// init first
-
-import * as admin from 'firebase-admin';
-
-const serviceAccount = require('../config/credential.json');
-admin.initializeApp({ credential: admin.credential.cert(serviceAccount), databaseURL: 'https://prepaid-245804.firebaseio.com/' });
-admin.firestore().settings({ timestampsInSnapshots: true });
+import * as fs from 'fs-extra';
+import * as readline from 'readline';
 
 import * as HackerTarget from './hackertarget';
-import { logScan, stopBrowser } from './utils';
+import { stopBrowser, sanitizeInput } from './utils';
 
 const chalk = require('chalk');
 const log = console.log;
 
 args
-    .version("0.0.1")
+    .version('0.0.1', '-v, --version')
     .option("-t, --target <target>", "target host")
+    .option("-f --file <file>", ".txt file containing targets to scan")
     .option("-m, --modules <modules>", "modules to run")
     .parse(process.argv);
 
@@ -32,49 +27,51 @@ args
 
 async function scan() {
     try {
-        const { target } = args.parse(process.argv);
-        const modules = args.parse(process.argv).modules || ['WP', 'OPENVAS', 'NMAP', 'JOOMLA', 'BE'];
+        const opts = args.parse(process.argv);
+        const targets = [];
 
+        // Handle lists of targets
+        if (opts.file) {
+            log(chalk.green('Importing targets'));
 
-        log(chalk.green('Executing Scan: ', target));
+            // Import the file
+            let reader = readline.createInterface({
+                input: fs.createReadStream(resolve(__dirname, opts.file)),
+            });
+
+            reader.on('line', (line) => {
+                targets.push(sanitizeInput(line));
+            });
+        }
+
+        if (opts.target) {
+            targets.push(sanitizeInput(opts.target));
+        }
+
+        log(chalk.green(`Running on ${targets.length} targets`));
 
         const options = {
             ignoreHTTPSErrors: true,
-            headless: false,
+            headless: process.env.NODE_ENV === 'production' ? true : false,
             args: ['--no-sandbox', '--disable-setuid-sandbox', '--ignore-certificate-errors', '--disk-cache-size=1', '--disable-infobars'],
         };
         const browser = await puppeteer.launch(options);
 
         const page = await browser.newPage();
-        await page.setDefaultNavigationTimeout(15000);
+        await page.setDefaultNavigationTimeout(25000);
 
         // Login
         await HackerTarget.login(process.env.HACKERTARGET_USERNAME, process.env.HACKERTARGET_PASSWORD, page);
 
-        // await HackerTarget.profileTarget(target, page);
-        // log(chalk.green('Executed Domain Profiling', target));
+        // Scan
+        for (const target of targets) {
+            log(chalk.green(`Executing scan on ${target} targets`));
+            await HackerTarget.runDefaultScanProfile(target, page);
+        }
 
-        // await HackerTarget.runNikto(target, page);
-        // log(chalk.green('Executed Nikto Scanner (Full):', target));
-
-        // await HackerTarget.scanWP(target, page);
-        // log(chalk.green('Executed WP Full Scanner:', target));
-
-        await HackerTarget.runNMAP(target, page);
-        log(chalk.green('Executed NMAP (-sV) Scanner:', target));
-
-        await HackerTarget.runOpenVAS(target, page);
-        log(chalk.green('Execute OpenVAS Scanner:', target));
-
-
-        // await HackerTarget.runBlindElephant(target, page);
-        // log(chalk.green('Execute BlindElephant Scanner:', target));
-
-        log(`Finished HackerTarget Scanning for: ${target}.`);
-        await logScan(target);
         await stopBrowser(browser);
     } catch (error) {
-        console.error("Migration failed!", error);
+        console.error("Execution of scan failed!", error);
     }
 }
 

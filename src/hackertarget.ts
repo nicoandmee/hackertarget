@@ -1,38 +1,51 @@
-import * as Puppeteer from 'puppeteer';
+import * as puppeteer from 'puppeteer';
 
 const chalk = require('chalk');
 const log = console.log;
 
-export async function login(username: string, password: string, page: Puppeteer.Page) {
-    await page.goto('https://hackertarget.com/wp-login.php', { waitUntil: 'networkidle2' });
+export async function login(username: string, password: string, page: puppeteer.Page) {
+    await page.goto('https://hackertarget.com/wp-login.php', { waitUntil: 'networkidle0' });
 
-    await page.waitForSelector('#user_login');
+    await page.waitForSelector('#user_login', {timeout: 25000 });
 
-    await page.type('#user_login', username);
-    await page.type('#user_pass', password);
+    await page.type('#user_login', username, { delay: 250 });
+    await page.type('#user_pass', password, { delay: 250 });
     await page.click('label[for="rememberme"]');
 
-    const handle = await page.$('#wp-submit');
     await Promise.all([
-        handle.click(),
+        page.click('#wp-submit'),
         page.waitForNavigation({ waitUntil: 'networkidle2' })
     ]);
 
-    await page.waitForSelector('a[href="/dashboard/"]', { timeout: 12000 });
+    await page.waitForSelector('a[href="/dashboard/"]', { timeout: 25000 });
     log(chalk.green('Login success!'));
 
-
-    await page.waitForSelector('a[data-cookie-set="accept"]')
-    await page.click('a[data-cookie-set="accept"]');
+    await page.waitForSelector('a[data-cookie-set="accept"]', {delay: 250  })
+    await page.click('a[data-cookie-set="accept"]', {delay: 250  });
 
 }
+
+export async function runDefaultScanProfile(target, page) {
+    await runNMAP(target, page);
+    log(chalk.green('Executed NMAP Scanner:', target));
+
+    await runOpenVAS(target, page);
+    log(chalk.green('Execute OpenVAS Scanner:', target));
+
+    await runNikto(target, page);
+    log(chalk.green('Execute Nikto Scanner:', target));
+
+    log(chalk.blue(`Finished HackerTarget Scanning for: ${target}.`));
+}
+
+
+
 /**
- * @description Similar/the same as results from dnsdumpster.com
- *
- * @param {any} target
- * @param {any} page
+ * @description Runs a domain profile of the target.
+ * @param {string} target URL of target
+ * @param {puppeteer.Page} page Puppeteer Page Object
  */
-export async function profileTarget(target: string, page: Puppeteer.Page) {
+export async function profileTarget(target: string, page: puppeteer.Page) {
     await page.goto('https://hackertarget.com/domain-profiler/', { waitUntil: 'networkidle2' });
 
 
@@ -47,13 +60,14 @@ export async function profileTarget(target: string, page: Puppeteer.Page) {
         page.waitForSelector('.alert-success', { visible: true, timeout: 12000 })
     ]);
 }
+
+
 /**
- * @description Runs a intense WP scan against target (WARNING: make sure target is WP for this to produce meaningful results)
- *
- * @param {any} target
- * @param {any} page
+ * @description Runs WordPress specific scanning tools on the given target or targt(s). Saved to Drive automatically as reports generated.
+ * @param {string} target URL of target
+ * @param {puppeteer.Page} page Puppeteer Page Object
  */
-export async function scanWP(target: string, page: Puppeteer.Page) {
+export async function scanWordpress(target: string, page: puppeteer.Page) {
     await page.goto('https://hackertarget.com/wordpress-security-scan/', { waitUntil: 'networkidle2' });
 
     await page.waitForSelector('#myForm1 > div.btx-form-container > span > select');
@@ -71,12 +85,11 @@ export async function scanWP(target: string, page: Puppeteer.Page) {
 
 
 /**
- * @description Runs enumeration on all services running on the given target server.
- *
- * @param {any} target
- * @param {any} page
+ * @description Runs Wappalyzer test scan on the given target or targt(s). Saved to Drive automatically as reports generated.
+ * @param {string} target URL of target
+ * @param {puppeteer.Page} page Puppeteer Page Object
  */
-export async function runWappalyzer(target: string, page: Puppeteer.Page) {
+export async function runWappalyzer(target: string, page: puppeteer.Page) {
     await page.goto('https://hackertarget.com/whatweb-scan/', { waitUntil: 'networkidle2' });
 
     await page.type('[name="scantarget"],[name="theinput"]', target);
@@ -89,15 +102,14 @@ export async function runWappalyzer(target: string, page: Puppeteer.Page) {
 }
 
 /**
- * @description Runs a full Nikto web vulnerability scan on given target or target(s).
- *
- * @param {any} target
- * @param {any} page
+ * @description Runs as full Nikto vulnerability scan on the given target or targt(s). Saved to Drive automatically as reports generated.
+ * @param {string} target URL of target
+ * @param {puppeteer.Page} page Puppeteer Page Object
  */
-export async function runNikto(target: string, page: Puppeteer.Page) {
+export async function runNikto(target: string, page: puppeteer.Page) {
     await page.goto('https://hackertarget.com/nikto-website-scanner/', { waitUntil: 'networkidle2' });
 
-    await page.waitForSelector('[name="scantarget"],[name="theinput"]');
+    await page.waitForSelector('[name="scantarget"],[name="theinput"]', {timeout: 12000});
     await page.type('[name="scantarget"],[name="theinput"]', target);
     await page.select('[name="useragent"]', 'chrome');
 
@@ -110,18 +122,17 @@ export async function runNikto(target: string, page: Puppeteer.Page) {
     ]);
 }
 
+
 /**
- * @description Runs a full OpenVAS scan on the given target or target(s
- *
- * @param {any} target
- * @param {any} page
+ * @description Runs as full OpenVAS scan on the given target or targt(s). Saved to Drive automatically as reports generated.
+ * @param {string} target URL of target
+ * @param {puppeteer.Page} page Puppeteer Page Object
  */
-export async function runOpenVAS(target: string, page: Puppeteer.Page) {
-    // OpenVAS Full Scan
+export async function runOpenVAS(target: string, page: puppeteer.Page) {
     await page.goto('https://hackertarget.com/openvas-scan/', { waitUntil: 'networkidle2' });
 
-    await page.waitForSelector('select[name="reporttype"]');
-    await page.select('select[name="reporttype"]', 'Enhanced');
+    await page.waitForSelector('#reporttype');
+    await page.select('#reporttype', 'Enhanced');
 
     await page.type('[name="scantarget"],[name="theinput"]', target);
     await page.click('[name="terms"]');
@@ -134,13 +145,14 @@ export async function runOpenVAS(target: string, page: Puppeteer.Page) {
 }
 
 /**
- * @description Runs as full NMAP scan on the given target or targt(s). Saved to Drive automatically as reports generated.
- *
- * @param {any} target
- * @param {any} page
+ * @description Runs as full Nmap scan on the given target or targt(s). Saved to Drive automatically as reports generated.
+ * @param {string} target URL of target
+ * @param {puppeteer.Page} page Puppeteer Page Object
  */
-export async function runNMAP(target: string, page: Puppeteer.Page) {
+export async function runNMAP(target: string, page: puppeteer.Page) {
     await page.goto('https://hackertarget.com/nmap-online-port-scanner/', { waitUntil: 'networkidle2' });
+    await page.waitForSelector('[name="scantarget"]');
+
     await page.type('[name="scantarget"],[name="theinput"]', target);
 
     await page.click('#allports');
@@ -158,12 +170,11 @@ export async function runNMAP(target: string, page: Puppeteer.Page) {
 
 
 /**
- * @description Runs as full Joomla scan on the given target or targt(s). Saved to Drive automatically as reports generated.
- *
- * @param {any} target
- * @param {any} page
+ * @description Runs as full Jooma scan on the given target or target(s). Saved to Drive automatically as reports generated.
+ * @param {string} target URL of target
+ * @param {puppeteer.Page} page Puppeteer Page Object
  */
- export async function runJoomla(target: string, page: Puppeteer.Page) {
+ export async function runJoomla(target: string, page: puppeteer.Page) {
     await page.goto('https://hackertarget.com/joomla-security-scan/ckertarget.com/nmap-online-port-scanner/', { waitUntil: 'networkidle2' });
      await page.waitForSelector('[name="useragent"]');
 
@@ -180,16 +191,12 @@ export async function runNMAP(target: string, page: Puppeteer.Page) {
     ]);
 }
 
-
-
-
 /**
- * @description Runs as full Drupal scan on the given target or targt(s). Saved to Drive automatically as reports generated.
- *
- * @param {any} target
- * @param {any} page
+ * @description Runs as full Drupal scan on the given target or target(s). Saved to Drive automatically as reports generated.
+ * @param {string} target URL of target
+ * @param {puppeteer.Page} page Puppeteer Page Object
  */
- export async function runDrupal(target: string, page: Puppeteer.Page) {
+ export async function runDrupal(target: string, page: puppeteer.Page) {
     await page.goto('https://hackertarget.com/joomla-security-scan', { waitUntil: 'networkidle2' });
      await page.waitForSelector('[name="enumtype"]');
      await page.select('[name=enumtype', 'default');
@@ -205,14 +212,34 @@ export async function runNMAP(target: string, page: Puppeteer.Page) {
 }
 
 
+/**
+ * @description Runs SQLi injection test on the target
+ * @param {string} target URL of target
+ * @param {puppeteer.Page} page Puppeteer Page Object
+ */
+export async function runSQLInjectionScan(target: string, page: puppeteer.Page) {
+    await page.goto('https://hackertarget.com/sql-injection-test-online/', { waitUntil: 'networkidle2' });
+    await page.waitForSelector('input[name="scantarget"]', { timeout: 120000 });
+
+    await page.type('input[name="scantarget"]', target);
+    await page.select('[name="useragent"]', 'chrome');
+
+    await page.click('[name="terms"]');
+    return Promise.all([
+        page.click('#clickform'),
+        page.waitForNavigation(),
+        page.waitForSelector('.alert-success', { visible: true, timeout: 12000 })
+    ]);
+
+}
+
 
 /**
  * @description Runs BlindElephant recon scan on the given target or targt(s). Saved to Drive automatically as reports generated.
- *
- * @param {any} target
- * @param {any} page
+ * @param {string} target
+ * @param {puppeteer.Page} page
  */
-export async function runBlindElephant(target: string, page: Puppeteer.Page) {
+export async function runBlindElephant(target: string, page: puppeteer.Page) {
     await page.goto('https://hackertarget.com/blindelephant-scan/', { waitUntil: 'networkidle2' });
      await page.waitForSelector('[name="webapp"]');
 
