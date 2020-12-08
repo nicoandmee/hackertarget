@@ -17,7 +17,7 @@
     "commander": "^2.20.0",
     "csv-parse": "^4.8.3",
     "dotenv": "^8.0.0",
-    "fast-csv": "^4.0.2",
+    "fast-csv": "^4.3.6",
     "firebase-admin": "^8.2.0",
     "fs-extra": "^8.1.0",
     "get-stream": "^5.1.0",
