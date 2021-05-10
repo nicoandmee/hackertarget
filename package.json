@@ -22,7 +22,7 @@
     "fs-extra": "^8.1.0",
     "get-stream": "^5.1.0",
     "inquirer": "^6.5.0",
-    "lodash": "^4.17.15",
+    "lodash": "^4.17.21",
     "puppeteer": "^1.18.1",
     "shodan-client": "^3.1.4",
     "subquest": "^1.5.3",
